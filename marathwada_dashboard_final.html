@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>MS-CIT Marathwada Admission Dashboard – July 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#0b0e1a;--surface:#111525;--card:#161c30;--card2:#1c2240;
+  --border:rgba(255,255,255,0.07);--text:#e8ecff;--muted:#6b74a0;
+  --a1:#7c6bff;--a2:#f7c948;--a3:#22d8b0;--a4:#f06292;
+  --east:#22d8b0;--west:#7c6bff;--center:#f7c948;
+  --red:#ff6b6b;--green:#22d8b0;--radius:14px;
+  --shadow:0 8px 40px rgba(0,0,0,.5);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(124,107,255,.025)1px,transparent 1px),linear-gradient(90deg,rgba(124,107,255,.025)1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+
+/* ── HEADER ── */
+header{position:relative;z-index:10;background:linear-gradient(120deg,#0e1128 0%,#141830 60%,#0f1a2e 100%);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;min-height:68px}
+.hdr-left{display:flex;align-items:center;gap:14px}
+.logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--a1),var(--a3));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:#fff;flex-shrink:0}
+.hdr-titles h1{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;background:linear-gradient(90deg,#e8ecff 40%,var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.2}
+.hdr-titles p{font-size:11.5px;color:var(--muted);margin-top:2px}
+.hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#last-upd{font-size:11px;color:var(--muted);background:rgba(255,255,255,.05);padding:4px 10px;border-radius:20px;border:1px solid var(--border)}
+#refresh-btn{display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,var(--a1),#a855f7);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12.5px;font-weight:500;cursor:pointer;transition:opacity .2s,transform .15s;font-family:'DM Sans',sans-serif}
+#refresh-btn:hover{opacity:.85;transform:translateY(-1px)}
+#refresh-btn:active{transform:scale(.97)}
+.spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;display:none;animation:spin .6s linear infinite}
+.refreshing .spin{display:block}.refreshing .ri{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── MAIN ── */
+main{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:1.25rem 2rem 3rem}
+
+/* ── FILTER ── */
+.filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem}
+.filter-bar label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-right:4px}
+.fbtn{padding:7px 18px;border-radius:30px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:12.5px;font-weight:500;cursor:pointer;transition:all .18s;font-family:'DM Sans',sans-serif}
+.fbtn:hover{border-color:rgba(255,255,255,.2);color:var(--text)}
+.fbtn.active[data-r="all"]{background:linear-gradient(135deg,var(--a1),#a855f7);color:#fff;border-color:transparent}
+.fbtn.active[data-r="east"]{background:var(--east);color:#0b0e1a;border-color:transparent}
+.fbtn.active[data-r="west"]{background:var(--west);color:#fff;border-color:transparent}
+.fbtn.active[data-r="center"]{background:var(--center);color:#0b0e1a;border-color:transparent}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin-bottom:1.25rem}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.2rem;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;animation:fadeUp .4s ease both}
+.kpi:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
+.kpi.c1::before{background:linear-gradient(90deg,var(--a1),#a855f7)}
+.kpi.c2::before{background:linear-gradient(90deg,var(--a3),#06b6d4)}
+.kpi.c3::before{background:linear-gradient(90deg,var(--a2),#f97316)}
+.kpi.c4::before{background:linear-gradient(90deg,var(--red),#f472b6)}
+.kpi.c5::before{background:linear-gradient(90deg,#22d3ee,#818cf8)}
+.kpi.c6::before{background:linear-gradient(90deg,#fb7185,#f43f5e)}
+.kpi-ico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:8px}
+.kpi.c1 .kpi-ico{background:rgba(124,107,255,.15)}
+.kpi.c2 .kpi-ico{background:rgba(34,216,176,.15)}
+.kpi.c3 .kpi-ico{background:rgba(247,201,72,.15)}
+.kpi.c4 .kpi-ico{background:rgba(255,107,107,.15)}
+.kpi.c5 .kpi-ico{background:rgba(34,211,238,.15)}
+.kpi.c6 .kpi-ico{background:rgba(251,113,133,.15)}
+.kpi-lbl{font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.kpi-val{font-family:'Syne',sans-serif;font-size:1.65rem;font-weight:700;color:var(--text);line-height:1.1}
+.kpi-sub{font-size:10.5px;color:var(--muted);margin-top:3px}
+.badge{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:10px;margin-top:5px;letter-spacing:.02em}
+.b-red{background:rgba(255,107,107,.15);color:var(--red)}
+.b-green{background:rgba(34,216,176,.15);color:var(--green)}
+.b-amber{background:rgba(247,201,72,.15);color:var(--a2)}
+
+/* ── CHARTS ── */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:1.25rem}
+@media(max-width:1080px){.charts-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.charts-grid{grid-template-columns:1fr}}
+.ch-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.25rem;animation:fadeUp .45s ease both}
+.ch-card:nth-child(2){animation-delay:.07s}
+.ch-card:nth-child(3){animation-delay:.14s}
+.ch-title{font-family:'Syne',sans-serif;font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:2px}
+.ch-sub{font-size:10.5px;color:var(--muted);margin-bottom:12px}
+.ch-wrap{position:relative;width:100%;height:230px}
+
+/* ── SCENARIO CARDS ── */
+.sc-title-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sc-title-row h3{font-family:'Syne',sans-serif;font-size:13.5px;font-weight:700}
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:1.25rem}
+.sc{border-radius:var(--radius);padding:.85rem 1rem;border:1px solid;animation:fadeUp .5s ease both}
+.sc.danger{background:rgba(255,107,107,.07);border-color:rgba(255,107,107,.25);color:#fca5a5}
+.sc.warn{background:rgba(247,201,72,.07);border-color:rgba(247,201,72,.25);color:#fde68a}
+.sc.good{background:rgba(34,216,176,.07);border-color:rgba(34,216,176,.25);color:#6ee7b7}
+.sc.info{background:rgba(124,107,255,.07);border-color:rgba(124,107,255,.25);color:#c4b5fd}
+.sc-head{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;opacity:.8;margin-bottom:5px}
+.sc-num{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;line-height:1;margin-bottom:4px}
+.sc-desc{font-size:11px;opacity:.8}
+
+/* ── DCU BREAKDOWN ── */
+.dcu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:1.25rem}
+.dcu-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1.1rem;animation:fadeUp .45s ease both}
+.dcu-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.dcu-name{font-family:'Syne',sans-serif;font-size:12.5px;font-weight:700}
+.rtag{font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:10px}
+.rtag.e{background:rgba(34,216,176,.15);color:var(--east)}
+.rtag.w{background:rgba(124,107,255,.15);color:var(--west)}
+.rtag.c{background:rgba(247,201,72,.15);color:var(--center)}
+.prog-bg{background:rgba(255,255,255,.07);border-radius:4px;height:6px;overflow:hidden;margin:5px 0}
+.prog-fill{height:100%;border-radius:4px;transition:width .7s cubic-bezier(.4,0,.2,1)}
+.fe{background:linear-gradient(90deg,var(--a3),#06b6d4)}
+.fw{background:linear-gradient(90deg,var(--a1),#a855f7)}
+.fc{background:linear-gradient(90deg,var(--a2),#f97316)}
+.dcu-stat{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-top:2px}
+.dcu-stat span:first-child{font-weight:600;color:var(--text)}
+
+/* ── TABLE ── */
+.tbl-section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.25rem;animation:fadeUp .55s ease both}
+.tbl-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem}
+.tbl-hdr h2{font-family:'Syne',sans-serif;font-size:14px;font-weight:700}
+.srch{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;padding:6px 11px}
+.srch svg{color:var(--muted);flex-shrink:0}
+.srch input{background:none;border:none;outline:none;color:var(--text);font-size:12.5px;font-family:'DM Sans',sans-serif;width:190px}
+.srch input::placeholder{color:var(--muted)}
+.tbl-wrap{overflow-x:auto;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:rgba(255,255,255,.04);color:var(--muted);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:9px 12px;text-align:left;cursor:pointer;white-space:nowrap;user-select:none;transition:color .15s;border-bottom:1px solid var(--border)}
+thead th:hover{color:var(--text)}
+thead th.sa::after{content:' ↑'}thead th.sd::after{content:' ↓'}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .12s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+tbody td{padding:8px 12px;color:var(--text)}
+.rpill{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px}
+.pe{background:rgba(34,216,176,.12);color:var(--east);border:1px solid rgba(34,216,176,.2)}
+.pw{background:rgba(124,107,255,.12);color:#a78bfa;border:1px solid rgba(124,107,255,.2)}
+.pc{background:rgba(247,201,72,.12);color:var(--a2);border:1px solid rgba(247,201,72,.2)}
+.dp{color:var(--green);font-weight:600}
+.dn{color:var(--red);font-weight:600}
+.dz{color:var(--muted)}
+.bar-cell{display:flex;align-items:center;gap:7px;min-width:80px}
+.mbar{flex:1;height:4px;background:rgba(255,255,255,.07);border-radius:2px;min-width:30px}
+.mfill{height:100%;border-radius:2px}
+.pagi{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:11.5px;color:var(--muted)}
+.pbtns{display:flex;gap:5px}
+.pbtns button{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 10px;font-size:11.5px;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif}
+.pbtns button:hover{background:rgba(255,255,255,.09);color:var(--text)}
+.pbtns button.ap{background:var(--a1);color:#fff;border-color:var(--a1)}
+.pbtns button:disabled{opacity:.3;cursor:default}
+
+/* ── LOADING ── */
+#overlay{position:fixed;inset:0;z-index:9999;background:rgba(11,14,26,.9);backdrop-filter:blur(5px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+#overlay.hidden{display:none}
+.lring{width:52px;height:52px;border:3px solid rgba(124,107,255,.2);border-top-color:var(--a1);border-radius:50%;animation:spin .75s linear infinite}
+.ltxt{font-family:'Syne',sans-serif;font-size:13px;color:var(--muted);letter-spacing:.06em}
+
+/* ── UTILS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.sec-lbl{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  header{padding:.75rem 1rem}main{padding:1rem 1rem 2rem}
+  .kpi-val{font-size:1.4rem}.srch input{width:120px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="overlay">
+  <div class="lring"></div>
+  <div class="ltxt">Loading Marathwada data…</div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-left">
+    <div class="logo">MC</div>
+    <div class="hdr-titles">
+      <h1>MS-CIT Marathwada Admission Dashboard</h1>
+      <p>July 2026 Exam Event · Zee Learn Limited Centers · East + West + Center</p>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span id="last-upd">Last updated: —</span>
+    <button id="refresh-btn" onclick="refreshData()">
+      <span class="ri">↻</span><span class="spin"></span> Refresh Data
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- FILTER -->
+  <div class="filter-bar">
+    <label>Region:</label>
+    <button class="fbtn active" data-r="all"   onclick="setRegion('all')">🗺 All Marathwada</button>
+    <button class="fbtn"        data-r="east"  onclick="setRegion('east')">🟢 East</button>
+    <button class="fbtn"        data-r="west"  onclick="setRegion('west')">🔵 West</button>
+    <button class="fbtn"        data-r="center" onclick="setRegion('center')">🟡 Center</button>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <!-- CHARTS -->
+  <div class="charts-grid">
+    <div class="ch-card">
+      <div class="ch-title">Region-wise Admissions</div>
+      <div class="ch-sub">July 2026 vs June 2025 (base year)</div>
+      <div class="ch-wrap"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="ch-card">
+      <div class="ch-title">Share by Region · July 2026</div>
+      <div class="ch-sub">Admission distribution among active centers</div>
+      <div class="ch-wrap"><canvas id="pieChart"></canvas></div>
+    </div>
+    <div class="ch-card">
+      <div class="ch-title">Achievement % per DCU</div>
+      <div class="ch-sub">July 2026 achieved vs June 2025 base</div>
+      <div class="ch-wrap"><canvas id="lineChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- SCENARIOS -->
+  <div class="sc-title-row">
+    <h3 class="sec-lbl">⚡ Key Scenarios</h3>
+  </div>
+  <div class="sc-grid" id="sc-grid"></div>
+
+  <!-- DCU BREAKDOWN -->
+  <div class="sec-lbl">📊 DCU Breakdown</div>
+  <div class="dcu-grid" id="dcu-grid"></div>
+
+  <!-- TABLE -->
+  <div class="tbl-section" style="margin-top:1.25rem">
+    <div class="tbl-hdr">
+      <h2>Center-Level Data</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="srch">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input id="srch" type="text" placeholder="Search center, DCU, taluka…" oninput="renderTable()"/>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table id="dtbl">
+        <thead><tr>
+          <th onclick="sortBy('Center Name')">Center Name</th>
+          <th onclick="sortBy('DCU')">DCU</th>
+          <th onclick="sortBy('RCU')">Region</th>
+          <th onclick="sortBy('Taluka')">Taluka</th>
+          <th onclick="sortBy('UrbanRural')">Type</th>
+          <th onclick="sortBy('june25')">June 2025</th>
+          <th onclick="sortBy('july26')">July 2026</th>
+          <th onclick="sortBy('diff')">Diff</th>
+          <th onclick="sortBy('pct')">Achiev %</th>
+          <th onclick="sortBy('pending')">Pending</th>
+          <th onclick="sortBy('Category')">Category</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="pagi">
+      <span id="pinfo">—</span>
+      <div class="pbtns" id="pbtns"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   ⚙ CONFIGURATION
+   To connect a live Google Sheet, replace SHEET_URL with your
+   public CSV export link, e.g.:
+   https://docs.google.com/spreadsheets/d/SHEET_ID/export?format=csv&gid=GID
+   Or a SheetDB / opensheet JSON endpoint.
+   Leave as null to use the full embedded real dataset below.
+============================================================ */
+const SHEET_URL = null;
+
+/* ============================================================
+   REAL DATA from Google Sheet (Marathwada East + West + Center)
+   Source: MS-CIT July 2026 Exam Event Admission Status
+   Sheet ID: 1a-RO26j-MjUiPZ1FFntEUvmuFZhgEFi_h9g2TODYuJk
+============================================================ */
+const RAW = [
+  /* ─── MARATHWADA WEST : Jalna ─── */
+  {cc:"26210037",cn:"Creative Hi-Tech",        mobile:"9823663187",ur:"Rural",  dcu:"Jalna",                   rcu:"Marathwada West",cat:"MS-CIT Renewal",taluka:"Partur",        june25:72,  july26:68,  diff:-4,   pending:2  },
+  {cc:"26210045",cn:"Icon Computer Education", mobile:"9970931103",ur:"Urban",  dcu:"Jalna",                   rcu:"Marathwada West",cat:"MS-CIT Renewal",taluka:"Partur",        june25:93,  july26:39,  diff:-54,  pending:38 },
+  {cc:"26210015",cn:"Siddhivinayak Computers", mobile:"9822156228",ur:"Urban",  dcu:"Jalna",                   rcu:"Marathwada West",cat:"MS-CIT Renewal",taluka:"Badnapur",      june25:185, july26:72,  diff:-113, pending:0  },
+  {cc:"26210119",cn:"SOFTECH COMPUTERS JAFRABAD",mobile:"7350708090",ur:"Urban",dcu:"Jalna",                   rcu:"Marathwada West",cat:"MS-CIT Renewal",taluka:"Jafrabad",      june25:25,  july26:0,   diff:-25,  pending:4  },
+  {cc:"26210011",cn:"Riya Computers",           mobile:"9422723796",ur:"Urban",  dcu:"Jalna",                   rcu:"Marathwada West",cat:"MS-CIT Renewal",taluka:"Jalna",         june25:44,  july26:22,  diff:-22,  pending:2  },
+  {cc:"26210114",cn:"Jyoti Computers",          mobile:"9405481830",ur:"Rural",  dcu:"Jalna",                   rcu:"Marathwada West",cat:"MS-CIT Renewal",taluka:"Partur",        june25:27,  july26:35,  diff:8,    pending:23 },
+  {cc:"26210040",cn:"Shree Varad Computers",    mobile:"8830559966",ur:"Urban",  dcu:"Jalna",                   rcu:"Marathwada West",cat:"MS-CIT Renewal",taluka:"Jalna",         june25:48,  july26:32,  diff:-16,  pending:2  },
+  /* ─── MARATHWADA WEST : Chhatrapati Sambhajinagar ─── */
+  {cc:"16210137",cn:"SHREE INFOTECH",           mobile:"9579051111",ur:"Rural",  dcu:"Chhatrapati Sambhajinagar",rcu:"Marathwada West",cat:"MS-CIT Renewal",taluka:"C.Sambhajinagar",june25:26,july26:19,diff:-7,  pending:9  },
+  {cc:"16210118",cn:"Vijeta Computers",         mobile:"9096299424",ur:"Urban",  dcu:"Chhatrapati Sambhajinagar",rcu:"Marathwada West",cat:"MS-CIT Renewal",taluka:"C.Sambhajinagar",june25:37,july26:34,diff:-3,  pending:2  },
+  /* ─── MARATHWADA EAST : Parbhani ─── */
+  {cc:"15210020",cn:"Mahesh Computers",         mobile:"9116165252",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:175, july26:117, diff:-58,  pending:33 },
+  {cc:"15210044",cn:"Manav Computer Center",    mobile:"9960697377",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Purna",         june25:199, july26:75,  diff:-124, pending:1  },
+  {cc:"15210078",cn:"SANKALP COMPUTERS",        mobile:"9423762681",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:15,  july26:38,  diff:23,   pending:12 },
+  {cc:"15210130",cn:"VAISHNAVI COMPUTER CENTER",mobile:"9960881447",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:56,  july26:32,  diff:-24,  pending:9  },
+  {cc:"15210156",cn:"MAHESH COMPUTERS (2)",     mobile:"9922654898",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:28,  july26:33,  diff:5,    pending:2  },
+  {cc:"15210173",cn:"Sachin Computer",          mobile:"9527503212",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:23,  july26:8,   diff:-15,  pending:17 },
+  {cc:"15210190",cn:"Morya Computers",          mobile:"8830818288",ur:"Rural",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Jintur",         june25:24,  july26:20,  diff:-4,   pending:17 },
+  {cc:"15210019",cn:"SAHYADRI COMPUTERS",       mobile:"8855838344",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:7,   july26:34,  diff:27,   pending:6  },
+  {cc:"15210086",cn:"Yash Infotech",            mobile:"9423143063",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Jintur",         june25:100, july26:62,  diff:-38,  pending:20 },
+  {cc:"15210126",cn:"M.S. COMPUTERS PARBHANI", mobile:"8087146038",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:20,  july26:28,  diff:8,    pending:13 },
+  {cc:"15210187",cn:"SACHIN COMPUTERS",         mobile:"9373030597",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:40,  july26:29,  diff:-11,  pending:17 },
+  {cc:"15210133",cn:"IGM Computer Education",   mobile:"8806302005",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Gangakhed",     june25:300, july26:177, diff:-123, pending:0  },
+  {cc:"15210109",cn:"Vivek Computers",          mobile:"9049799218",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Purna",         june25:82,  july26:68,  diff:-14,  pending:5  },
+  {cc:"15210142",cn:"Ayushman Computer",        mobile:"7385631777",ur:"Rural",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Jintur",         june25:29,  july26:54,  diff:25,   pending:1  },
+  {cc:"15210135",cn:"Mahesh Computer Gangakhed",mobile:"9922119709",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Gangakhed",     june25:48,  july26:50,  diff:2,    pending:47 },
+  {cc:"15210084",cn:"Vivek Computers (84)",     mobile:"8888022294",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:127, july26:78,  diff:-49,  pending:1  },
+  {cc:"15210010",cn:"Vci Computer Point",       mobile:"9960697350",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:64,  july26:50,  diff:-14,  pending:13 },
+  {cc:"15210053",cn:"Shree Gajanan Computers",  mobile:"9890403603",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:30,  july26:0,   diff:-30,  pending:24 },
+  {cc:"15210122",cn:"SAIRAM COMPUTERS",         mobile:"9527521777",ur:"Rural",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Parbhani",      june25:51,  july26:36,  diff:-15,  pending:19 },
+  {cc:"15210107",cn:"Om Sai Infotech",          mobile:"9975751105",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Palam",         june25:87,  july26:72,  diff:-15,  pending:60 },
+  {cc:"15210226",cn:"Morya Computers Itoli",    mobile:"7620752078",ur:"Rural",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Jintur",        june25:0,   july26:6,   diff:6,    pending:20 },
+  {cc:"15210230",cn:"GLOBAL COMPUTER INSTITUTE",mobile:"9011107646",ur:"Urban",  dcu:"Parbhani",                rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Parbhani",     june25:0,   july26:3,   diff:3,    pending:0  },
+  /* ─── MARATHWADA EAST : Latur ─── */
+  {cc:"45210092",cn:"Saraswati Computer Center",mobile:"9970601856",ur:"Rural",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Chakur",        june25:145, july26:80,  diff:-65,  pending:5  },
+  {cc:"45210216",cn:"Suyash Computer Center",   mobile:"9665793929",ur:"Urban",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Jalkot",         june25:74,  july26:46,  diff:-28,  pending:9  },
+  {cc:"45210229",cn:"SOHAM COMPUTERS",          mobile:"9422016401",ur:"Rural",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Chakur",        june25:45,  july26:33,  diff:-12,  pending:13 },
+  {cc:"45210318",cn:"Kople Computers",          mobile:"9766250160",ur:"Urban",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Ahmadpur",      june25:66,  july26:21,  diff:-45,  pending:0  },
+  {cc:"45210366",cn:"BHARAT COMPUTER CENTER",   mobile:"9823325700",ur:"Urban",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Latur",         june25:56,  july26:55,  diff:-1,   pending:3  },
+  {cc:"45210203",cn:"GAYATRI COMPUTERS",        mobile:"9730874909",ur:"Urban",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Chakur",        june25:58,  july26:14,  diff:-44,  pending:19 },
+  {cc:"45210319",cn:"YOGI COMPUTERS",           mobile:"9970666734",ur:"Urban",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Jalkot",         june25:44,  july26:35,  diff:-9,   pending:24 },
+  {cc:"45210090",cn:"Pradeep Computer Center",  mobile:"9960813424",ur:"Rural",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Chakur",        june25:29,  july26:22,  diff:-7,   pending:11 },
+  {cc:"45210420",cn:"SHIV COMPUTER CENTER",     mobile:"8149303560",ur:"Urban",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Ahmadpur",     june25:0,   july26:13,  diff:13,   pending:6  },
+  {cc:"45210423",cn:"MAULI COMPUTERS JANWAL",   mobile:"9511958486",ur:"Rural",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Chakur",       june25:0,   july26:25,  diff:25,   pending:4  },
+  {cc:"45210424",cn:"DIKSHA COMPUTER CENTER",   mobile:"9823405905",ur:"Urban",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Ahmadpur",     june25:0,   july26:31,  diff:31,   pending:0  },
+  {cc:"45210425",cn:"Rajmata Computers",        mobile:"9765369762",ur:"Rural",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Jalkot",        june25:0,   july26:24,  diff:24,   pending:12 },
+  {cc:"45210436",cn:"SP INSTITUTE",             mobile:"9503446462",ur:"Rural",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Latur",         june25:0,   july26:5,   diff:5,    pending:0  },
+  {cc:"45210439",cn:"Pradnya Computer Center",  mobile:"9921663702",ur:"Rural",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Latur",         june25:0,   july26:0,   diff:0,    pending:24 },
+  {cc:"45210430",cn:"Shri Shivba Computer",     mobile:"8999616135",ur:"Rural",  dcu:"Latur",                   rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Jalkot",        june25:0,   july26:0,   diff:0,    pending:0  },
+  /* ─── MARATHWADA EAST : Nanded ─── */
+  {cc:"35210405",cn:"PHOENIX INFOTECH",         mobile:"9960803044",ur:"Rural",  dcu:"Nanded",                  rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Kandhar",       june25:29,  july26:33,  diff:4,    pending:0  },
+  {cc:"35210375",cn:"ANJALI COMPUTERS",         mobile:"7507701502",ur:"Rural",  dcu:"Nanded",                  rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Mukhed",         june25:96,  july26:15,  diff:-81,  pending:4  },
+  {cc:"35210323",cn:"BHIMASHANKAR COMPUTER ACADEMY",mobile:"9765692383",ur:"Rural",dcu:"Nanded",               rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Kandhar",       june25:58,  july26:20,  diff:-38,  pending:32 },
+  {cc:"35210324",cn:"Gaurav Infotech",          mobile:"8308470983",ur:"Rural",  dcu:"Nanded",                  rcu:"Marathwada East",cat:"MS-CIT Renewal",taluka:"Kandhar",       june25:44,  july26:14,  diff:-30,  pending:6  },
+  {cc:"35210453",cn:"PIYUSH INFOTECH KAUTHA",   mobile:"9970645146",ur:"Rural",  dcu:"Nanded",                  rcu:"Marathwada East",cat:"MS-CIT NCR 2026",taluka:"Kandhar",      june25:0,   july26:21,  diff:21,   pending:0  },
+];
+
+/* DCU-level summary from sheet (official totals) */
+const DCU_SUMMARY = {
+  "Beed":                       {june25:7460,  july26:4477, zero:19, rcu:"Marathwada West"},
+  "Chhatrapati Sambhajinagar":  {june25:11002, july26:7561, zero:29, rcu:"Marathwada West"},
+  "Dharashiv":                  {june25:4320,  july26:3078, zero:3,  rcu:"Marathwada West"},
+  "Jalna":                      {june25:5083,  july26:2869, zero:24, rcu:"Marathwada West"},
+  "Hingoli":                    {june25:3252,  july26:953,  zero:22, rcu:"Marathwada East"},
+  "Latur":                      {june25:7951,  july26:5297, zero:18, rcu:"Marathwada East"},
+  "Nanded":                     {june25:7944,  july26:4455, zero:18, rcu:"Marathwada East"},
+  "Parbhani":                   {june25:4482,  july26:3051, zero:13, rcu:"Marathwada East"},
+};
+
+/* RCU-level summary */
+const RCU_SUMMARY = {
+  "Marathwada East": {june25:23629, july26:13756, zero:71},
+  "Marathwada West": {june25:27865, july26:17985, zero:75},
+  "Center":          {june25:0,     july26:0,     zero:0 },
+};
+
+/* ============================================================  STATE  */
+let allData=[],filteredData=[],activeRegion='all',sortKey='july26',sortAsc=false,curPage=1;
+const PAGE_SIZE=15;
+let barChart,pieChart,lineChart;
+
+/* ============================================================  LOAD  */
+async function loadData(){
+  showLoad(true);
+  try{
+    if(SHEET_URL){
+      const res=await fetch(SHEET_URL);
+      const isCSV=SHEET_URL.includes('format=csv')||SHEET_URL.endsWith('.csv');
+      if(isCSV){
+        const txt=await res.text();
+        allData=parseCSV(txt);
+        document.getElementById('overlay').querySelector('.ltxt').textContent='Parsed CSV…';
+      } else {
+        const j=await res.json();
+        allData=normalise(Array.isArray(j)?j:j.data||[]);
+      }
+    } else {
+      allData=RAW;
+    }
+  }catch(e){console.error(e);allData=RAW;}
+  document.getElementById('last-upd').textContent='Last updated: '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  applyFilter();
+  showLoad(false);
+}
+
+function normalise(rows){
+  return rows.map(r=>({
+    cc:r['Center Code']||r.cc||'',
+    cn:r['Center Name']||r.cn||'',
+    mobile:r['Mobile No']||r.mobile||'',
+    ur:r['Urban/Rural']||r.ur||'',
+    dcu:r['DCU']||r.dcu||'',
+    rcu:r['RCU']||r.rcu||'',
+    cat:r['Center Category']||r.cat||'',
+    taluka:r['Taluka']||r.taluka||'',
+    june25:+( r['MS-CIT June 2025 Exam Event']||r.june25||0),
+    july26:+( r['MS-CIT July 2026 Exam Event']||r.july26||0),
+    diff:+(  r['Admission Difference (2025 vs. 2026)']||r.diff||0),
+    pending:+(r['Pending to Confirm (July Exam Event)']||r.pending||0),
+  }));
+}
+
+function parseCSV(txt){
+  const ln=txt.trim().split('\n');
+  const hdr=ln[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+  return normalise(ln.slice(1).map(l=>{
+    const v=l.split(',').map(c=>c.trim().replace(/^"|"$/g,''));
+    const o={};hdr.forEach((h,i)=>o[h]=v[i]||'');return o;
+  }));
+}
+
+/* ============================================================  REGION  */
+function setRegion(r){
+  activeRegion=r;curPage=1;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.toggle('active',b.dataset.r===r));
+  applyFilter();
+}
+
+function applyFilter(){
+  const map={all:null,east:'Marathwada East',west:'Marathwada West',center:'Center'};
+  const rcu=map[activeRegion];
+  filteredData=rcu? allData.filter(d=>d.rcu===rcu)
+                  : allData.filter(d=>['Marathwada East','Marathwada West','Center'].includes(d.rcu));
+  renderKPIs();renderCharts();renderScenarios();renderDCU();renderTable();
+}
+
+/* ============================================================  KPIs  */
+function renderKPIs(){
+  /* Use official DCU totals for aggregation */
+  let dcus=Object.entries(DCU_SUMMARY).filter(([,v])=>{
+    if(activeRegion==='all') return true;
+    if(activeRegion==='east') return v.rcu==='Marathwada East';
+    if(activeRegion==='west') return v.rcu==='Marathwada West';
+    return false;
+  });
+  const tot26=dcus.reduce((s,[,v])=>s+v.july26,0);
+  const tot25=dcus.reduce((s,[,v])=>s+v.june25,0);
+  const zeroALC=dcus.reduce((s,[,v])=>s+v.zero,0);
+  const pct=tot25>0?Math.round((tot26/tot25)*100):0;
+  const totalPend=filteredData.reduce((s,d)=>s+d.pending,0);
+  const growing=filteredData.filter(d=>d.diff>0).length;
+  const zeroCent=filteredData.filter(d=>d.july26===0).length;
+
+  const kpis=[
+    {c:'c1',ic:'🎓',lbl:'July 2026 Admissions',val:tot26.toLocaleString(),sub:'Total confirmed (official)',badge:null},
+    {c:'c2',ic:'📈',lbl:'Achievement %',val:pct+'%',sub:`vs ${tot25.toLocaleString()} (June 2025)`,badge:pct>=70?{t:'On Track',c:'b-green'}:pct>=50?{t:'Below Target',c:'b-amber'}:{t:'Critical',c:'b-red'}},
+    {c:'c3',ic:'⏳',lbl:'Pending Confirmations',val:totalPend.toLocaleString(),sub:'Uploaded but unconfirmed',badge:totalPend>200?{t:'High',c:'b-red'}:{t:'Monitor',c:'b-amber'}},
+    {c:'c4',ic:'⚠️',lbl:'Zero-Admission ALCs',val:zeroALC,sub:'All-center count by DCU',badge:{t:'Needs Action',c:'b-red'}},
+    {c:'c5',ic:'✅',lbl:'Growing Centers',val:growing,sub:'Zee Learn centers in sample',badge:{t:'Positive',c:'b-green'}},
+    {c:'c6',ic:'🔴',lbl:'Zero Centers (Sample)',val:zeroCent,sub:'Centers with 0 confirmed',badge:{t:'Follow Up',c:'b-red'}},
+  ];
+  document.getElementById('kpi-grid').innerHTML=kpis.map(k=>`
+    <div class="kpi ${k.c}"><div class="kpi-ico">${k.ic}</div>
+    <div class="kpi-lbl">${k.lbl}</div><div class="kpi-val">${k.val}</div>
+    <div class="kpi-sub">${k.sub}</div>
+    ${k.badge?`<div class="badge ${k.badge.c}">${k.badge.t}</div>`:''}</div>`).join('');
+}
+
+/* ============================================================  CHARTS  */
+function rcuOf(dcu){
+  return DCU_SUMMARY[dcu]?DCU_SUMMARY[dcu].rcu:'Center';
+}
+
+function renderCharts(){
+  /* Filter DCUs by region */
+  let dcuKeys=Object.keys(DCU_SUMMARY).filter(k=>{
+    const r=DCU_SUMMARY[k].rcu;
+    if(activeRegion==='all') return true;
+    if(activeRegion==='east') return r==='Marathwada East';
+    if(activeRegion==='west') return r==='Marathwada West';
+    return false;
+  }).sort((a,b)=>DCU_SUMMARY[b].july26-DCU_SUMMARY[a].july26);
+
+  const barColors=dcuKeys.map(k=>DCU_SUMMARY[k].rcu==='Marathwada East'?'#22d8b0':'#7c6bff');
+  const vals25=dcuKeys.map(k=>DCU_SUMMARY[k].june25);
+  const vals26=dcuKeys.map(k=>DCU_SUMMARY[k].july26);
+  const achPct=dcuKeys.map(k=>{const v=DCU_SUMMARY[k];return v.june25>0?Math.round((v.july26/v.june25)*100):0});
+
+  const chartOpts={responsive:true,maintainAspectRatio:false,animation:{duration:500},
+    plugins:{legend:{labels:{color:'#6b74a0',font:{size:11}}}},
+    scales:{x:{ticks:{color:'#6b74a0',font:{size:10},maxRotation:35},grid:{display:false}},
+            y:{ticks:{color:'#6b74a0',font:{size:10}},grid:{color:'rgba(255,255,255,.05)'}}}};
+
+  if(barChart)barChart.destroy();
+  barChart=new Chart(document.getElementById('barChart'),{type:'bar',data:{
+    labels:dcuKeys,
+    datasets:[
+      {label:'June 2025',data:vals25,backgroundColor:'rgba(255,255,255,.08)',borderRadius:4,barPercentage:.45},
+      {label:'July 2026',data:vals26,backgroundColor:barColors,borderRadius:4,barPercentage:.45}
+    ]},options:{...chartOpts,plugins:{...chartOpts.plugins}}});
+
+  /* PIE */
+  let rcuMap={};
+  dcuKeys.forEach(k=>{const r=DCU_SUMMARY[k].rcu;rcuMap[r]=(rcuMap[r]||0)+DCU_SUMMARY[k].july26});
+  const pLabels=Object.keys(rcuMap),pVals=pLabels.map(k=>rcuMap[k]);
+  const pCols=pLabels.map(k=>k==='Marathwada East'?'#22d8b0':k==='Marathwada West'?'#7c6bff':'#f7c948');
+  if(pieChart)pieChart.destroy();
+  pieChart=new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:pLabels,datasets:[{data:pVals,backgroundColor:pCols,borderWidth:2,borderColor:'#161c30'}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',animation:{duration:600},
+      plugins:{legend:{position:'bottom',labels:{color:'#6b74a0',font:{size:11},padding:12}}}}});
+
+  /* LINE */
+  const lColors=dcuKeys.map(k=>DCU_SUMMARY[k].rcu==='Marathwada East'?'#22d8b0':'#7c6bff');
+  if(lineChart)lineChart.destroy();
+  lineChart=new Chart(document.getElementById('lineChart'),{type:'line',data:{labels:dcuKeys,datasets:[{
+    label:'Achievement %',data:achPct,borderColor:'#7c6bff',backgroundColor:'rgba(124,107,255,.08)',
+    pointBackgroundColor:lColors,pointBorderColor:lColors,tension:.35,fill:true,borderWidth:2,pointRadius:5
+  }]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:700},plugins:{legend:{display:false}},
+    scales:{x:{ticks:{color:'#6b74a0',font:{size:10},maxRotation:35},grid:{display:false}},
+            y:{min:0,max:120,ticks:{color:'#6b74a0',font:{size:10},callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.05)'}}}}});
+}
+
+/* ============================================================  SCENARIOS  */
+function renderScenarios(){
+  let dcus=Object.entries(DCU_SUMMARY).filter(([,v])=>{
+    if(activeRegion==='all') return true;
+    if(activeRegion==='east') return v.rcu==='Marathwada East';
+    if(activeRegion==='west') return v.rcu==='Marathwada West';
+    return false;
+  });
+  const totalZero=dcus.reduce((s,[,v])=>s+v.zero,0);
+  const zeroCent=filteredData.filter(d=>d.july26===0).length;
+  const growing=filteredData.filter(d=>d.diff>0).length;
+  const highPend=filteredData.filter(d=>d.pending>=20).length;
+  const sharpDrop=filteredData.filter(d=>d.diff<=-50).length;
+  const ncr=filteredData.filter(d=>d.cat&&d.cat.includes('NCR')).length;
+
+  const worst=dcus.sort((a,b)=>{const pa=b[1].june25>0?(b[1].july26/b[1].june25):0;const pb=a[1].june25>0?(a[1].july26/a[1].june25):0;return pa-pb});
+  const worstDCU=worst[0]?worst[0][0]:'—';
+  const worstPct=worst[0]&&worst[0][1].june25>0?Math.round((worst[0][1].july26/worst[0][1].june25)*100)+'%':'—';
+
+  document.getElementById('sc-grid').innerHTML=[
+    {cls:'danger',head:'Zero-Admission ALCs',num:totalZero,desc:'Centers with 0 July 2026 admissions across all DCUs'},
+    {cls:'danger',head:'Zero Confirmed (Sample)',num:zeroCent,desc:'Zee Learn centers with 0 confirmed in this dataset'},
+    {cls:'danger',head:'Sharp Decline (≥50 drop)',num:sharpDrop,desc:'Centers losing 50+ admissions vs June 2025'},
+    {cls:'warn',head:'High Pending (≥20)',num:highPend,desc:'Centers with 20+ unconfirmed uploaded admissions'},
+    {cls:'good',head:'Growing Centers',num:growing,desc:'Centers with more July 2026 vs June 2025'},
+    {cls:'good',head:'New NCR Centers',num:ncr,desc:'New centers from MS-CIT NCR 2026 batch'},
+    {cls:'info',head:'Worst DCU Achievement',num:worstPct,desc:`${worstDCU} — lowest % achieved vs last year`},
+    {cls:'info',head:'Active DCUs Tracked',num:dcus.length,desc:'DCUs in selected region with official totals'},
+  ].map((s,i)=>`<div class="sc ${s.cls}" style="animation-delay:${i*.05}s">
+    <div class="sc-head">${s.head}</div>
+    <div class="sc-num">${s.num}</div>
+    <div class="sc-desc">${s.desc}</div>
+  </div>`).join('');
+}
+
+/* ============================================================  DCU CARDS  */
+function renderDCU(){
+  let dcus=Object.entries(DCU_SUMMARY).filter(([,v])=>{
+    if(activeRegion==='all') return true;
+    if(activeRegion==='east') return v.rcu==='Marathwada East';
+    if(activeRegion==='west') return v.rcu==='Marathwada West';
+    return false;
+  }).sort((a,b)=>b[1].july26-a[1].july26);
+  const maxV=Math.max(...dcus.map(([,v])=>v.july26),1);
+  document.getElementById('dcu-grid').innerHTML=dcus.map(([dcu,v],i)=>{
+    const pct=v.june25>0?Math.round((v.july26/v.june25)*100):0;
+    const bw=Math.round((v.july26/maxV)*100);
+    const isE=v.rcu==='Marathwada East';
+    return `<div class="dcu-card" style="animation-delay:${i*.04}s">
+      <div class="dcu-hdr"><div class="dcu-name">${dcu}</div>
+      <span class="rtag ${isE?'e':'w'}">${isE?'East':'West'}</span></div>
+      <div class="prog-bg"><div class="prog-fill ${isE?'fe':'fw'}" style="width:${bw}%"></div></div>
+      <div class="dcu-stat">
+        <span>${v.july26.toLocaleString()} admits</span>
+        <span>${pct}% · ${v.zero} zero-ALCs</span>
+      </div></div>`;
+  }).join('');
+}
+
+/* ============================================================  TABLE  */
+function sortBy(k){
+  if(sortKey===k)sortAsc=!sortAsc;else{sortKey=k;sortAsc=false;}
+  document.querySelectorAll('thead th').forEach(th=>{
+    th.classList.remove('sa','sd');
+    if(th.getAttribute('onclick')===`sortBy('${k}')`){th.classList.add(sortAsc?'sa':'sd');}
+  });
+  renderTable();
+}
+
+function renderTable(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  let rows=filteredData.filter(d=>!q||
+    (d.cn||'').toLowerCase().includes(q)||
+    (d.dcu||'').toLowerCase().includes(q)||
+    (d.rcu||'').toLowerCase().includes(q)||
+    (d.taluka||'').toLowerCase().includes(q)||
+    (d.cc||'').toLowerCase().includes(q));
+  rows=rows.slice().sort((a,b)=>{
+    const av=a[sortKey]??0,bv=b[sortKey]??0;
+    if(typeof av==='string')return sortAsc?(av>bv?1:-1):(av<bv?1:-1);
+    return sortAsc?av-bv:bv-av;
+  });
+  const tot=rows.length;
+  const totPg=Math.ceil(tot/PAGE_SIZE)||1;
+  if(curPage>totPg)curPage=totPg;
+  const st=(curPage-1)*PAGE_SIZE;
+  const pg=rows.slice(st,st+PAGE_SIZE);
+  const mx=Math.max(...rows.map(d=>d.july26),1);
+
+  document.getElementById('tbody').innerHTML=pg.map(d=>{
+    const rc=d.rcu==='Marathwada East'?'pe':d.rcu==='Marathwada West'?'pw':'pc';
+    const rl=d.rcu==='Marathwada East'?'East':d.rcu==='Marathwada West'?'West':'Center';
+    const dc=d.diff>0?'dp':d.diff<0?'dn':'dz';
+    const ds=d.diff>0?'+'+d.diff:d.diff;
+    const pct=d.june25>0?Math.round((d.july26/d.june25)*100)+'%':d.july26>0?'New':'—';
+    const bw=Math.round((d.july26/mx)*100);
+    const bc=d.rcu==='Marathwada East'?'#22d8b0':'#7c6bff';
+    const zeroBg=d.july26===0?'background:rgba(255,107,107,.06)':'';
+    return `<tr style="${zeroBg}">
+      <td style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.cn}</td>
+      <td>${d.dcu}</td>
+      <td><span class="rpill ${rc}">${rl}</span></td>
+      <td>${d.taluka||'—'}</td>
+      <td>${d.ur||'—'}</td>
+      <td>${d.june25}</td>
+      <td><div class="bar-cell"><span>${d.july26}</span><div class="mbar"><div class="mfill" style="width:${bw}%;background:${bc}"></div></div></div></td>
+      <td class="${dc}">${ds}</td>
+      <td>${pct}</td>
+      <td>${d.pending}</td>
+      <td style="font-size:10px;color:var(--muted)">${d.cat||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('pinfo').textContent=`Showing ${st+1}–${Math.min(st+PAGE_SIZE,tot)} of ${tot} centers`;
+  const maxB=7;let pages=[];
+  if(totPg<=maxB){pages=Array.from({length:totPg},(_,i)=>i+1);}
+  else{pages=[1];if(curPage>3)pages.push('…');for(let i=Math.max(2,curPage-1);i<=Math.min(totPg-1,curPage+1);i++)pages.push(i);if(curPage<totPg-2)pages.push('…');pages.push(totPg);}
+  document.getElementById('pbtns').innerHTML=
+    `<button onclick="gp(${curPage-1})" ${curPage===1?'disabled':''}>‹</button>`+
+    pages.map(p=>typeof p==='number'
+      ?`<button onclick="gp(${p})" class="${p===curPage?'ap':''}">${p}</button>`
+      :`<button disabled style="opacity:.4">…</button>`).join('')+
+    `<button onclick="gp(${curPage+1})" ${curPage===totPg?'disabled':''}>›</button>`;
+}
+
+function gp(p){
+  const tot=filteredData.length;const tp=Math.ceil(tot/PAGE_SIZE)||1;
+  if(p<1||p>tp)return;curPage=p;renderTable();
+}
+
+/* ============================================================  REFRESH  */
+async function refreshData(){
+  const btn=document.getElementById('refresh-btn');
+  btn.classList.add('refreshing');btn.disabled=true;
+  await loadData();
+  btn.classList.remove('refreshing');btn.disabled=false;
+}
+
+function showLoad(v){document.getElementById('overlay').classList.toggle('hidden',!v);}
+
+/* INIT */
+loadData();
+</script>
+</body>
+</html>
