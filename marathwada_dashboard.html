@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MS-CIT Marathwada Admission Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  /* ============================================================
+     CONFIGURATION: Replace the SHEET_URL in the <script> below
+     with your Google Sheet public JSON / CSV / SheetDB URL.
+     ============================================================ */
+
+  :root {
+    --bg:        #0d0f1a;
+    --surface:   #151929;
+    --card:      #1b2039;
+    --border:    rgba(255,255,255,0.07);
+    --text:      #e8eaf6;
+    --muted:     #7b82a8;
+    --accent1:   #6c63ff;  /* purple */
+    --accent2:   #f7c948;  /* amber  */
+    --accent3:   #22d3a5;  /* teal   */
+    --accent4:   #f06292;  /* pink   */
+    --east:      #22d3a5;
+    --west:      #6c63ff;
+    --center:    #f7c948;
+    --red:       #ff6b6b;
+    --green:     #22d3a5;
+    --radius:    14px;
+    --shadow:    0 4px 32px rgba(0,0,0,0.45);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---- Background grid pattern ---- */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ============================================================
+     HEADER
+  ============================================================ */
+  header {
+    position: relative;
+    z-index: 10;
+    background: linear-gradient(135deg, #1a1040 0%, #0d1a35 50%, #0d1a25 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    min-height: 72px;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 14px; }
+
+  .logo-badge {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent1), var(--accent3));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 17px; color: #fff;
+    flex-shrink: 0;
+  }
+
+  .header-titles h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.15rem; font-weight: 700;
+    background: linear-gradient(90deg, #fff 40%, var(--accent3));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1.2;
+  }
+  .header-titles p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  #last-updated {
+    font-size: 11px; color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  #refresh-btn {
+    display: flex; align-items: center; gap: 7px;
+    background: linear-gradient(135deg, var(--accent1), #a855f7);
+    color: #fff; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: opacity 0.2s, transform 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  #refresh-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  #refresh-btn:active { transform: scale(0.97); }
+
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    display: none;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .refreshing .spinner { display: block; }
+  .refreshing .btn-icon { display: none; }
+
+  /* ============================================================
+     MAIN LAYOUT
+  ============================================================ */
+  main {
+    position: relative; z-index: 1;
+    max-width: 1440px; margin: 0 auto;
+    padding: 1.5rem 2rem 3rem;
+  }
+
+  /* ---- Config notice ---- */
+  #config-notice {
+    background: linear-gradient(90deg, rgba(247,201,72,0.15), rgba(247,201,72,0.05));
+    border: 1px solid rgba(247,201,72,0.35);
+    border-radius: var(--radius);
+    padding: 0.75rem 1.25rem;
+    font-size: 12.5px; color: #f7c948;
+    margin-bottom: 1.25rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #config-notice strong { font-weight: 600; }
+
+  /* ---- Region filter strip ---- */
+  .filter-strip {
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap; margin-bottom: 1.5rem;
+  }
+  .filter-strip label {
+    font-size: 12px; font-weight: 500; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.07em;
+    margin-right: 4px;
+  }
+
+  .filter-btn {
+    padding: 7px 18px; border-radius: 30px;
+    border: 1px solid var(--border);
+    background: var(--card); color: var(--muted);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all 0.18s; font-family: 'DM Sans', sans-serif;
+  }
+  .filter-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+  .filter-btn.active[data-region="all"] { background: linear-gradient(135deg,var(--accent1),#a855f7); color:#fff; border-color:transparent; }
+  .filter-btn.active[data-region="east"] { background: var(--east); color:#0d0f1a; border-color:transparent; }
+  .filter-btn.active[data-region="west"] { background: var(--west); color:#fff; border-color:transparent; }
+  .filter-btn.active[data-region="center"] { background: var(--center); color:#0d0f1a; border-color:transparent; }
+
+  /* ---- KPI Cards ---- */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin-bottom: 1.5rem;
+  }
+
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    position: relative; overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: fadeUp 0.4s ease both;
+  }
+  .kpi-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .kpi-card.c1::before { background: linear-gradient(90deg, var(--accent1), #a855f7); }
+  .kpi-card.c2::before { background: linear-gradient(90deg, var(--accent3), #06b6d4); }
+  .kpi-card.c3::before { background: linear-gradient(90deg, var(--accent2), #f97316); }
+  .kpi-card.c4::before { background: linear-gradient(90deg, var(--red), #f472b6); }
+  .kpi-card.c5::before { background: linear-gradient(90deg, #22d3ee, #818cf8); }
+
+  .kpi-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; margin-bottom: 10px;
+  }
+  .kpi-card.c1 .kpi-icon { background: rgba(108,99,255,0.15); }
+  .kpi-card.c2 .kpi-icon { background: rgba(34,211,165,0.15); }
+  .kpi-card.c3 .kpi-icon { background: rgba(247,201,72,0.15); }
+  .kpi-card.c4 .kpi-icon { background: rgba(255,107,107,0.15); }
+  .kpi-card.c5 .kpi-icon { background: rgba(34,211,238,0.15); }
+
+  .kpi-label {
+    font-size: 11px; font-weight: 500; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
+  }
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.75rem; font-weight: 700; color: var(--text);
+    line-height: 1.1;
+  }
+  .kpi-sub {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+  }
+  .kpi-badge {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 2px 7px; border-radius: 10px; margin-top: 5px;
+  }
+  .badge-red { background: rgba(255,107,107,0.15); color: var(--red); }
+  .badge-green { background: rgba(34,211,165,0.15); color: var(--green); }
+  .badge-amber { background: rgba(247,201,72,0.15); color: var(--accent2); }
+
+  /* ---- Charts grid ---- */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px; margin-bottom: 1.5rem;
+  }
+  @media (max-width: 1100px) { .charts-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 680px)  { .charts-grid { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    animation: fadeUp 0.5s ease both;
+  }
+  .chart-card:nth-child(2) { animation-delay: 0.08s; }
+  .chart-card:nth-child(3) { animation-delay: 0.16s; }
+
+  .chart-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: var(--text); margin-bottom: 3px;
+  }
+  .chart-sub { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+
+  .chart-wrap { position: relative; width: 100%; height: 240px; }
+
+  /* ---- DCU breakdown table ---- */
+  .dcu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px; margin-bottom: 1.5rem;
+  }
+
+  .dcu-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    animation: fadeUp 0.45s ease both;
+  }
+  .dcu-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .dcu-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 700;
+  }
+  .dcu-region-tag {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  }
+  .tag-east  { background: rgba(34,211,165,0.15); color: var(--east);   }
+  .tag-west  { background: rgba(108,99,255,0.15); color: var(--west);   }
+  .tag-center { background: rgba(247,201,72,0.15); color: var(--center); }
+
+  .progress-bar-wrap {
+    background: rgba(255,255,255,0.06); border-radius: 4px;
+    height: 6px; overflow: hidden; margin: 6px 0;
+  }
+  .progress-bar {
+    height: 100%; border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .bar-east   { background: linear-gradient(90deg, var(--east), #06b6d4); }
+  .bar-west   { background: linear-gradient(90deg, var(--west), #a855f7); }
+  .bar-center { background: linear-gradient(90deg, var(--center), #f97316); }
+
+  .dcu-stats {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--muted); margin-top: 2px;
+  }
+  .dcu-stats span:first-child { font-weight: 600; color: var(--text); }
+
+  /* ---- Data Table ---- */
+  .table-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    animation: fadeUp 0.55s ease both;
+  }
+  .table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;
+  }
+  .table-header h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px; font-weight: 700;
+  }
+
+  .search-wrap {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 12px;
+  }
+  .search-wrap svg { color: var(--muted); flex-shrink: 0; }
+  .search-wrap input {
+    background: none; border: none; outline: none;
+    color: var(--text); font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    width: 200px;
+  }
+  .search-wrap input::placeholder { color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; border-radius: 8px; }
+
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  thead th {
+    background: rgba(255,255,255,0.04);
+    color: var(--muted); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 10px 14px; text-align: left;
+    cursor: pointer; white-space: nowrap;
+    user-select: none; transition: color 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+  thead th:hover { color: var(--text); }
+  thead th.sort-asc::after  { content: ' ↑'; }
+  thead th.sort-desc::after { content: ' ↓'; }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.12s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+  tbody td { padding: 9px 14px; color: var(--text); }
+
+  .region-pill {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+  }
+  .pill-east   { background: rgba(34,211,165,0.12); color: #22d3a5; border: 1px solid rgba(34,211,165,0.25); }
+  .pill-west   { background: rgba(108,99,255,0.12); color: #8b7cf6; border: 1px solid rgba(108,99,255,0.25); }
+  .pill-center { background: rgba(247,201,72,0.12); color: #f7c948; border: 1px solid rgba(247,201,72,0.25); }
+
+  .diff-pos { color: var(--green); font-weight: 600; }
+  .diff-neg { color: var(--red); font-weight: 600; }
+  .diff-neu { color: var(--muted); }
+
+  .pct-bar-cell { display: flex; align-items: center; gap: 8px; }
+  .mini-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; }
+  .mini-fill { height: 100%; border-radius: 2px; }
+
+  .pagination {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px; margin-top: 14px; font-size: 12px; color: var(--muted);
+  }
+  .page-btns { display: flex; gap: 6px; }
+  .page-btns button {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 6px; padding: 5px 11px;
+    font-size: 12px; cursor: pointer; transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .page-btns button:hover { background: rgba(255,255,255,0.09); color: var(--text); }
+  .page-btns button.active { background: var(--accent1); color: #fff; border-color: var(--accent1); }
+
+  /* ---- Loading overlay ---- */
+  #loading-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(13,15,26,0.85);
+    backdrop-filter: blur(4px);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px;
+  }
+  #loading-overlay.hidden { display: none; }
+
+  .loader-ring {
+    width: 52px; height: 52px;
+    border: 3px solid rgba(108,99,255,0.2);
+    border-top-color: var(--accent1);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+  .loader-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px; color: var(--muted); letter-spacing: 0.05em;
+  }
+
+  /* ---- Animations ---- */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 600px) {
+    header { padding: 0.75rem 1rem; }
+    main { padding: 1rem 1rem 2rem; }
+    .kpi-value { font-size: 1.4rem; }
+    .search-wrap input { width: 130px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Loading admission data…</div>
+</div>
+
+<!-- ============================================================
+     HEADER
+============================================================ -->
+<header>
+  <div class="header-left">
+    <div class="logo-badge">MC</div>
+    <div class="header-titles">
+      <h1>MS-CIT Marathwada Dashboard</h1>
+      <p>July 2026 Exam Event · Admission Status</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="last-updated">Last updated: —</span>
+    <button id="refresh-btn" onclick="refreshData()">
+      <span class="btn-icon">↻</span>
+      <span class="spinner"></span>
+      Refresh Data
+    </button>
+  </div>
+</header>
+
+<!-- ============================================================
+     MAIN
+============================================================ -->
+<main>
+
+  <!-- Config notice -->
+  <div id="config-notice">
+    ⚙️ <span>
+      <strong>Config:</strong> Replace <code>SHEET_URL</code> in the &lt;script&gt; section below with your public Google Sheet JSON / CSV / SheetDB URL.
+      Currently showing <strong>embedded sample data</strong>.
+    </span>
+  </div>
+
+  <!-- Region filter -->
+  <div class="filter-strip">
+    <label>Region:</label>
+    <button class="filter-btn active" data-region="all" onclick="setRegion('all')">All Marathwada</button>
+    <button class="filter-btn" data-region="east" onclick="setRegion('east')">📗 East</button>
+    <button class="filter-btn" data-region="west" onclick="setRegion('west')">📘 West</button>
+    <button class="filter-btn" data-region="center" onclick="setRegion('center')">📙 Center</button>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpi-grid">
+    <!-- Populated by JS -->
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Region-wise Admissions</div>
+      <div class="chart-sub">July 2026 vs June 2025 comparison</div>
+      <div class="chart-wrap"><canvas id="barChart" role="img" aria-label="Bar chart showing region-wise admissions">Region comparison</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Admission Distribution</div>
+      <div class="chart-sub">Share by region · July 2026</div>
+      <div class="chart-wrap"><canvas id="pieChart" role="img" aria-label="Pie chart showing distribution">Distribution</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Achievement Trend</div>
+      <div class="chart-sub">% achieved vs June 2025 base</div>
+      <div class="chart-wrap"><canvas id="lineChart" role="img" aria-label="Line chart showing trend">Trend</canvas></div>
+    </div>
+  </div>
+
+  <!-- DCU Breakdown -->
+  <div id="dcu-section">
+    <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px;">
+      DCU Breakdown
+    </div>
+    <div class="dcu-grid" id="dcu-grid"></div>
+  </div>
+
+  <!-- Data Table -->
+  <div class="table-section" style="margin-top:1.5rem;">
+    <div class="table-header">
+      <h2>Center-Level Data</h2>
+      <div class="search-wrap">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="search-input" placeholder="Search center, DCU…" oninput="renderTable()"/>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="data-table">
+        <thead>
+          <tr>
+            <th onclick="sortBy('Center Name')">Center Name</th>
+            <th onclick="sortBy('DCU')">DCU</th>
+            <th onclick="sortBy('RCU')">Region</th>
+            <th onclick="sortBy('Taluka')">Taluka</th>
+            <th onclick="sortBy('Urban/Rural')">Type</th>
+            <th onclick="sortBy('june25')">June 2025</th>
+            <th onclick="sortBy('july26')">July 2026</th>
+            <th onclick="sortBy('diff')">Difference</th>
+            <th onclick="sortBy('pct')">Achievement</th>
+            <th onclick="sortBy('Pending to Confirm (July Exam Event)')">Pending</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="pagination-info">Showing — of — centers</span>
+      <div class="page-btns" id="page-btns"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ============================================================
+     JAVASCRIPT
+============================================================ -->
+<script>
+/* ============================================================
+   ⚙️  CONFIGURATION  ⚙️
+   Replace SHEET_URL with your public Google Sheet JSON endpoint.
+   Options:
+     - SheetDB:     https://sheetdb.io/api/v1/YOUR_ID
+     - Google CSV:  https://docs.google.com/spreadsheets/d/YOUR_ID/export?format=csv&gid=YOUR_GID
+     - SheetJSON:   https://opensheet.elk.sh/YOUR_SHEET_ID/Sheet1
+   If SHEET_URL is null, the dashboard uses embedded sample data below.
+============================================================ */
+const SHEET_URL = null; // ← Paste your URL here as a string
+
+/* ============================================================
+   SAMPLE DATA  (mirrors the actual Marathwada sheet data)
+   Structure: same fields as your sheet. Modify freely.
+============================================================ */
+const SAMPLE_DATA = [
+  /* ---- Marathwada West: Jalna ---- */
+  { "Center Name":"Creative Hi-Tech","Center Code":"26210037","DCU":"Jalna","RCU":"Marathwada West","Taluka":"Partur","Urban/Rural":"Rural","june25":72,"july26":68,"diff":-4,"pending":2 },
+  { "Center Name":"Icon Computer Education","Center Code":"26210045","DCU":"Jalna","RCU":"Marathwada West","Taluka":"Partur","Urban/Rural":"Urban","june25":93,"july26":39,"diff":-54,"pending":38 },
+  { "Center Name":"Siddhivinayak Computers","Center Code":"26210015","DCU":"Jalna","RCU":"Marathwada West","Taluka":"Badnapur","Urban/Rural":"Urban","june25":185,"july26":72,"diff":-113,"pending":0 },
+  { "Center Name":"SOFTECH COMPUTERS Jafrabad","Center Code":"26210119","DCU":"Jalna","RCU":"Marathwada West","Taluka":"Jafrabad","Urban/Rural":"Urban","june25":25,"july26":0,"diff":-25,"pending":4 },
+  { "Center Name":"Riya Computers","Center Code":"26210011","DCU":"Jalna","RCU":"Marathwada West","Taluka":"Jalna","Urban/Rural":"Urban","june25":44,"july26":22,"diff":-22,"pending":2 },
+  { "Center Name":"Jyoti Computers","Center Code":"26210114","DCU":"Jalna","RCU":"Marathwada West","Taluka":"Partur","Urban/Rural":"Rural","june25":27,"july26":35,"diff":8,"pending":23 },
+  { "Center Name":"Shree Varad Computers","Center Code":"26210040","DCU":"Jalna","RCU":"Marathwada West","Taluka":"Jalna","Urban/Rural":"Urban","june25":48,"july26":31,"diff":-17,"pending":2 },
+  /* ---- Marathwada West: C. Sambhajinagar ---- */
+  { "Center Name":"SHREE INFOTECH","Center Code":"16210137","DCU":"Chhatrapati Sambhajinagar","RCU":"Marathwada West","Taluka":"C. Sambhajinagar","Urban/Rural":"Rural","june25":26,"july26":3,"diff":-23,"pending":23 },
+  { "Center Name":"Vijeta Computers","Center Code":"16210118","DCU":"Chhatrapati Sambhajinagar","RCU":"Marathwada West","Taluka":"C. Sambhajinagar","Urban/Rural":"Urban","june25":37,"july26":31,"diff":-6,"pending":4 },
+  /* ---- Marathwada East: Parbhani ---- */
+  { "Center Name":"Mahesh Computers","Center Code":"15210020","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":175,"july26":113,"diff":-62,"pending":34 },
+  { "Center Name":"Manav Computer Center","Center Code":"15210044","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Purna","Urban/Rural":"Urban","june25":199,"july26":75,"diff":-124,"pending":1 },
+  { "Center Name":"SANKALP COMPUTERS","Center Code":"15210078","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":15,"july26":38,"diff":23,"pending":12 },
+  { "Center Name":"VAISHNAVI COMPUTER CENTER","Center Code":"15210130","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":56,"july26":32,"diff":-24,"pending":9 },
+  { "Center Name":"MAHESH COMPUTERS (2)","Center Code":"15210156","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":28,"july26":29,"diff":1,"pending":1 },
+  { "Center Name":"Sachin Computer","Center Code":"15210173","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":23,"july26":8,"diff":-15,"pending":15 },
+  { "Center Name":"Morya Computers","Center Code":"15210190","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Jintur","Urban/Rural":"Rural","june25":24,"july26":20,"diff":-4,"pending":17 },
+  { "Center Name":"SAHYADRI COMPUTERS","Center Code":"15210019","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":7,"july26":34,"diff":27,"pending":6 },
+  { "Center Name":"Yash Infotech","Center Code":"15210086","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Jintur","Urban/Rural":"Urban","june25":100,"july26":61,"diff":-39,"pending":9 },
+  { "Center Name":"M.S. COMPUTERS PARBHANI","Center Code":"15210126","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":20,"july26":27,"diff":7,"pending":14 },
+  { "Center Name":"SACHIN COMPUTERS","Center Code":"15210187","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":40,"july26":29,"diff":-11,"pending":17 },
+  { "Center Name":"IGM Computer Education","Center Code":"15210133","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Gangakhed","Urban/Rural":"Urban","june25":300,"july26":177,"diff":-123,"pending":0 },
+  { "Center Name":"Vivek Computers","Center Code":"15210109","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Purna","Urban/Rural":"Urban","june25":82,"july26":66,"diff":-16,"pending":5 },
+  { "Center Name":"Ayushman Computer","Center Code":"15210142","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Jintur","Urban/Rural":"Rural","june25":29,"july26":52,"diff":23,"pending":3 },
+  { "Center Name":"Mahesh Computer (Gangakhed)","Center Code":"15210135","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Gangakhed","Urban/Rural":"Urban","june25":48,"july26":27,"diff":-21,"pending":69 },
+  { "Center Name":"VIVEK Computers (84)","Center Code":"15210084","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":127,"july26":78,"diff":-49,"pending":1 },
+  { "Center Name":"VCI Computer Point","Center Code":"15210010","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":64,"july26":47,"diff":-17,"pending":16 },
+  { "Center Name":"SHREE GAJANAN COMPUTERS","Center Code":"15210053","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":30,"july26":0,"diff":-30,"pending":24 },
+  { "Center Name":"SAIRAM COMPUTERS","Center Code":"15210122","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Rural","june25":51,"july26":36,"diff":-15,"pending":19 },
+  { "Center Name":"OM SAI INFOTECH","Center Code":"15210107","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Palam","Urban/Rural":"Urban","june25":87,"july26":69,"diff":-18,"pending":58 },
+  { "Center Name":"Morya Computers Itoli (NCR)","Center Code":"15210226","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Jintur","Urban/Rural":"Rural","june25":0,"july26":6,"diff":6,"pending":20 },
+  { "Center Name":"GLOBAL COMPUTER INSTITUTE","Center Code":"15210230","DCU":"Parbhani","RCU":"Marathwada East","Taluka":"Parbhani","Urban/Rural":"Urban","june25":0,"july26":3,"diff":3,"pending":0 },
+  /* ---- Marathwada East: Latur ---- */
+  { "Center Name":"Saraswati Computer Center","Center Code":"45210092","DCU":"Latur","RCU":"Marathwada East","Taluka":"Chakur","Urban/Rural":"Rural","june25":145,"july26":80,"diff":-65,"pending":5 },
+  { "Center Name":"Suyash Computer Center","Center Code":"45210216","DCU":"Latur","RCU":"Marathwada East","Taluka":"Jalkot","Urban/Rural":"Urban","june25":74,"july26":45,"diff":-29,"pending":8 },
+  { "Center Name":"SOHAM COMPUTERS","Center Code":"45210229","DCU":"Latur","RCU":"Marathwada East","Taluka":"Chakur","Urban/Rural":"Rural","june25":45,"july26":33,"diff":-12,"pending":13 },
+  { "Center Name":"Kople Computers","Center Code":"45210318","DCU":"Latur","RCU":"Marathwada East","Taluka":"Ahmadpur","Urban/Rural":"Urban","june25":66,"july26":21,"diff":-45,"pending":0 },
+  { "Center Name":"BHARAT COMPUTER CENTER","Center Code":"45210366","DCU":"Latur","RCU":"Marathwada East","Taluka":"Latur","Urban/Rural":"Urban","june25":56,"july26":54,"diff":-2,"pending":0 },
+  { "Center Name":"GAYATRI COMPUTERS","Center Code":"45210203","DCU":"Latur","RCU":"Marathwada East","Taluka":"Chakur","Urban/Rural":"Urban","june25":58,"july26":14,"diff":-44,"pending":19 },
+  { "Center Name":"YOGI COMPUTERS","Center Code":"45210319","DCU":"Latur","RCU":"Marathwada East","Taluka":"Jalkot","Urban/Rural":"Urban","june25":44,"july26":35,"diff":-9,"pending":24 },
+  { "Center Name":"Pradeep Computer Center","Center Code":"45210090","DCU":"Latur","RCU":"Marathwada East","Taluka":"Chakur","Urban/Rural":"Rural","june25":29,"july26":22,"diff":-7,"pending":11 },
+  { "Center Name":"SHIV COMPUTER CENTER (NCR)","Center Code":"45210420","DCU":"Latur","RCU":"Marathwada East","Taluka":"Ahmadpur","Urban/Rural":"Urban","june25":0,"july26":13,"diff":13,"pending":6 },
+  { "Center Name":"MAULI COMPUTERS JANWAL (NCR)","Center Code":"45210423","DCU":"Latur","RCU":"Marathwada East","Taluka":"Chakur","Urban/Rural":"Rural","june25":0,"july26":22,"diff":22,"pending":4 },
+  { "Center Name":"DIKSHA COMPUTER CENTER (NCR)","Center Code":"45210424","DCU":"Latur","RCU":"Marathwada East","Taluka":"Ahmadpur","Urban/Rural":"Urban","june25":0,"july26":29,"diff":29,"pending":2 },
+  { "Center Name":"Rajmata Computers (NCR)","Center Code":"45210425","DCU":"Latur","RCU":"Marathwada East","Taluka":"Jalkot","Urban/Rural":"Rural","june25":0,"july26":24,"diff":24,"pending":12 },
+  { "Center Name":"SP INSTITUTE (NCR)","Center Code":"45210436","DCU":"Latur","RCU":"Marathwada East","Taluka":"Latur","Urban/Rural":"Rural","june25":0,"july26":5,"diff":5,"pending":0 },
+  { "Center Name":"Pradnya Computer Center","Center Code":"45210439","DCU":"Latur","RCU":"Marathwada East","Taluka":"Latur","Urban/Rural":"Rural","june25":0,"july26":0,"diff":0,"pending":9 },
+  { "Center Name":"Shri Shivba Computer (NCR)","Center Code":"45210430","DCU":"Latur","RCU":"Marathwada East","Taluka":"Jalkot","Urban/Rural":"Rural","june25":0,"july26":0,"diff":0,"pending":0 },
+  /* ---- Marathwada East: Nanded ---- */
+  { "Center Name":"PHOENIX INFOTECH","Center Code":"35210405","DCU":"Nanded","RCU":"Marathwada East","Taluka":"Kandhar","Urban/Rural":"Rural","june25":29,"july26":33,"diff":4,"pending":0 },
+  { "Center Name":"ANJALI COMPUTERS","Center Code":"35210375","DCU":"Nanded","RCU":"Marathwada East","Taluka":"Mukhed","Urban/Rural":"Rural","june25":96,"july26":8,"diff":-88,"pending":7 },
+  { "Center Name":"BHIMASHANKAR COMPUTER ACADEMY","Center Code":"35210323","DCU":"Nanded","RCU":"Marathwada East","Taluka":"Kandhar","Urban/Rural":"Rural","june25":58,"july26":20,"diff":-38,"pending":18 },
+  { "Center Name":"Gaurav Infotech","Center Code":"35210324","DCU":"Nanded","RCU":"Marathwada East","Taluka":"Kandhar","Urban/Rural":"Rural","june25":44,"july26":14,"diff":-30,"pending":6 },
+  { "Center Name":"PIYUSH INFOTECH KAUTHA (NCR)","Center Code":"35210453","DCU":"Nanded","RCU":"Marathwada East","Taluka":"Kandhar","Urban/Rural":"Rural","june25":0,"july26":18,"diff":18,"pending":2 },
+  /* ---- Center region (sample – add your real Center rows) ---- */
+  { "Center Name":"Sample Center A","Center Code":"99000001","DCU":"Aurangabad","RCU":"Center","Taluka":"City","Urban/Rural":"Urban","june25":120,"july26":95,"diff":-25,"pending":10 },
+  { "Center Name":"Sample Center B","Center Code":"99000002","DCU":"Aurangabad","RCU":"Center","Taluka":"Rural Area","Urban/Rural":"Rural","june25":80,"july26":90,"diff":10,"pending":5 }
+];
+
+/* ============================================================
+   GLOBAL STATE
+============================================================ */
+let allData = [];
+let filteredData = [];
+let activeRegion = 'all';
+let sortKey = 'july26';
+let sortAsc = false;
+let currentPage = 1;
+const PAGE_SIZE = 15;
+let barChart, pieChart, lineChart;
+
+/* ============================================================
+   DATA LOADING
+============================================================ */
+async function loadData() {
+  showLoading(true);
+  try {
+    if (SHEET_URL) {
+      // ---- Fetch from your live sheet ----
+      const isCSV = SHEET_URL.includes('format=csv') || SHEET_URL.endsWith('.csv');
+      const res = await fetch(SHEET_URL);
+      if (!isCSV) {
+        const json = await res.json();
+        // SheetDB / opensheet return array of objects directly
+        allData = normalizeJSON(Array.isArray(json) ? json : json.data || []);
+      } else {
+        const text = await res.text();
+        allData = parseCSV(text);
+      }
+      document.getElementById('config-notice').style.display = 'none';
+    } else {
+      // Use embedded sample data
+      allData = SAMPLE_DATA;
+    }
+    document.getElementById('last-updated').textContent =
+      'Last updated: ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+    applyFilter();
+  } catch(e) {
+    console.error('Data load error:', e);
+    allData = SAMPLE_DATA;
+    applyFilter();
+  }
+  showLoading(false);
+}
+
+/* Normalize raw sheet JSON to our internal schema */
+function normalizeJSON(rows) {
+  return rows.map(r => ({
+    "Center Name": r['Center Name'] || r['center_name'] || '',
+    "Center Code": r['Center Code'] || r['center_code'] || '',
+    "DCU": r['DCU'] || r['dcu'] || '',
+    "RCU": r['RCU'] || r['rcu'] || '',
+    "Taluka": r['Taluka'] || r['taluka'] || '',
+    "Urban/Rural": r['Urban/Rural'] || r['urban_rural'] || '',
+    "june25": Number(r['MS-CIT June 2025 Exam Event'] || r['june25'] || 0),
+    "july26": Number(r['MS-CIT July 2026 Exam Event'] || r['july26'] || 0),
+    "diff":   Number(r['Admission Difference (2025 vs. 2026)'] || r['diff'] || 0),
+    "pending": Number(r['Pending to Confirm (July Exam Event)'] || r['pending'] || 0),
+  }));
+}
+
+/* Simple CSV parser */
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).map(line => {
+    const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g,''));
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = vals[i] || '');
+    return normalizeJSON([obj])[0];
+  });
+}
+
+/* ============================================================
+   FILTER + RENDER
+============================================================ */
+function setRegion(r) {
+  activeRegion = r;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.region === r));
+  currentPage = 1;
+  applyFilter();
+}
+
+function applyFilter() {
+  const regionMap = { all: null, east: 'Marathwada East', west: 'Marathwada West', center: 'Center' };
+  const rcu = regionMap[activeRegion];
+  filteredData = rcu ? allData.filter(d => d.RCU === rcu) : allData.filter(d =>
+    ['Marathwada East','Marathwada West','Center'].includes(d.RCU)
+  );
+  renderKPIs();
+  renderCharts();
+  renderDCUBreakdown();
+  renderTable();
+}
+
+/* ============================================================
+   KPI CARDS
+============================================================ */
+function renderKPIs() {
+  const total26 = filteredData.reduce((s,d)=>s+d.july26,0);
+  const total25 = filteredData.reduce((s,d)=>s+d.june25,0);
+  const totalPending = filteredData.reduce((s,d)=>s+d.pending,0);
+  const zeroCenters = filteredData.filter(d=>d.july26===0).length;
+  const growing = filteredData.filter(d=>d.diff>0).length;
+  const pct = total25 > 0 ? Math.round((total26/total25)*100) : 0;
+
+  const kpis = [
+    { cls:'c1', icon:'🎓', label:'July 2026 Admissions', val: total26.toLocaleString(), sub:'Total confirmed', badge:null },
+    { cls:'c2', icon:'📈', label:'Achievement %', val: pct+'%', sub:`vs ${total25.toLocaleString()} (June 2025)`, badge: pct>=70?{t:'On track',c:'badge-green'}:pct>=50?{t:'Below target',c:'badge-amber'}:{t:'Critical',c:'badge-red'} },
+    { cls:'c3', icon:'⏳', label:'Pending Confirmations', val: totalPending.toLocaleString(), sub:'Uploaded but unconfirmed', badge: totalPending>200?{t:'High',c:'badge-red'}:{t:'Manageable',c:'badge-amber'} },
+    { cls:'c4', icon:'⚠️', label:'Zero-Admission ALCs', val: zeroCenters, sub:'Centers with 0 July 2026 admits', badge:{t:'Needs attention',c:'badge-red'} },
+    { cls:'c5', icon:'✅', label:'Growing Centers', val: growing, sub:'More admissions than last year', badge:{t:'Positive',c:'badge-green'} },
+  ];
+
+  document.getElementById('kpi-grid').innerHTML = kpis.map(k=>`
+    <div class="kpi-card ${k.cls}">
+      <div class="kpi-icon">${k.icon}</div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.val}</div>
+      <div class="kpi-sub">${k.sub}</div>
+      ${k.badge?`<div class="kpi-badge ${k.badge.c}">${k.badge.t}</div>`:''}
+    </div>
+  `).join('');
+}
+
+/* ============================================================
+   CHARTS
+============================================================ */
+const CHART_COLORS = {
+  east:   { bar:'#22d3a5', line:'#06b6d4', pie:'#22d3a5' },
+  west:   { bar:'#6c63ff', line:'#a855f7', pie:'#818cf8' },
+  center: { bar:'#f7c948', line:'#f97316', pie:'#f7c948' },
+};
+
+function dcuToRegion(dcu) {
+  const east  = ['Hingoli','Latur','Nanded','Parbhani'];
+  const west  = ['Beed','Chhatrapati Sambhajinagar','Dharashiv','Jalna'];
+  if (east.includes(dcu)) return 'east';
+  if (west.includes(dcu)) return 'west';
+  return 'center';
+}
+
+function renderCharts() {
+  const dcuMap = {};
+  filteredData.forEach(d => {
+    if (!dcuMap[d.DCU]) dcuMap[d.DCU] = { j25:0, j26:0, rg: dcuToRegion(d.DCU) };
+    dcuMap[d.DCU].j25 += d.june25;
+    dcuMap[d.DCU].j26 += d.july26;
+  });
+
+  const dcuKeys = Object.keys(dcuMap).sort((a,b)=>dcuMap[b].j26-dcuMap[a].j26);
+  const labels  = dcuKeys;
+  const vals25  = dcuKeys.map(k=>dcuMap[k].j25);
+  const vals26  = dcuKeys.map(k=>dcuMap[k].j26);
+  const barColors = dcuKeys.map(k=>CHART_COLORS[dcuMap[k].rg]?.bar||'#888');
+
+  /* --- Bar chart --- */
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'June 2025', data:vals25, backgroundColor:'rgba(255,255,255,0.08)', borderRadius:4 },
+        { label:'July 2026', data:vals26, backgroundColor:barColors, borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      animation: { duration: 500 },
+      plugins: { legend:{ labels:{ color:'#7b82a8', font:{size:11} } } },
+      scales: {
+        x: { ticks:{ color:'#7b82a8', font:{size:10}, maxRotation:35 }, grid:{ display:false } },
+        y: { ticks:{ color:'#7b82a8', font:{size:10} }, grid:{ color:'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+
+  /* --- Pie chart --- */
+  const rcuMap = {};
+  filteredData.forEach(d => {
+    rcuMap[d.RCU] = (rcuMap[d.RCU]||0) + d.july26;
+  });
+  const pieLabels = Object.keys(rcuMap);
+  const pieVals   = pieLabels.map(k=>rcuMap[k]);
+  const pieCols   = pieLabels.map(k=>{
+    if (k==='Marathwada East') return '#22d3a5';
+    if (k==='Marathwada West') return '#6c63ff';
+    return '#f7c948';
+  });
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: { labels:pieLabels, datasets:[{ data:pieVals, backgroundColor:pieCols, borderWidth:2, borderColor:'#151929' }] },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      cutout: '62%',
+      animation: { duration: 600 },
+      plugins: { legend:{ position:'bottom', labels:{ color:'#7b82a8', font:{size:11}, padding:12 } } }
+    }
+  });
+
+  /* --- Line chart (achievement % per DCU, sorted) --- */
+  const lineData = dcuKeys.map(k => {
+    const b = dcuMap[k];
+    return b.j25 > 0 ? Math.round((b.j26/b.j25)*100) : (b.j26>0?100:0);
+  });
+  const lineColors = dcuKeys.map(k=>CHART_COLORS[dcuMap[k].rg]?.line||'#888');
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label:'Achievement %',
+        data: lineData,
+        borderColor: '#6c63ff',
+        backgroundColor: 'rgba(108,99,255,0.08)',
+        pointBackgroundColor: lineColors,
+        pointBorderColor: lineColors,
+        tension: 0.35, fill: true, borderWidth: 2, pointRadius: 4
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      animation: { duration: 700 },
+      plugins: { legend:{ display:false } },
+      scales: {
+        x: { ticks:{ color:'#7b82a8', font:{size:10}, maxRotation:35 }, grid:{ display:false } },
+        y: {
+          min:0, max:120,
+          ticks:{ color:'#7b82a8', font:{size:10}, callback: v=>v+'%' },
+          grid:{ color:'rgba(255,255,255,0.05)' }
+        }
+      }
+    }
+  });
+}
+
+/* ============================================================
+   DCU BREAKDOWN CARDS
+============================================================ */
+function renderDCUBreakdown() {
+  const dcuMap = {};
+  const maxJ26 = Math.max(...filteredData.map(d=>d.july26), 1);
+  filteredData.forEach(d => {
+    if (!dcuMap[d.DCU]) dcuMap[d.DCU] = {j25:0,j26:0,rg:dcuToRegion(d.DCU),count:0};
+    dcuMap[d.DCU].j25 += d.june25;
+    dcuMap[d.DCU].j26 += d.july26;
+    dcuMap[d.DCU].count++;
+  });
+  const sorted = Object.entries(dcuMap).sort((a,b)=>b[1].j26-a[1].j26);
+  const maxVal = Math.max(...sorted.map(([,v])=>v.j26), 1);
+
+  document.getElementById('dcu-grid').innerHTML = sorted.map(([dcu,v])=>{
+    const pct = v.j25>0 ? Math.round((v.j26/v.j25)*100) : (v.j26>0?100:0);
+    const barW = Math.round((v.j26/maxVal)*100);
+    const rgTag = v.rg==='east'?'East':v.rg==='west'?'West':'Center';
+    const rgCls = v.rg==='east'?'tag-east':v.rg==='west'?'tag-west':'tag-center';
+    const barCls = v.rg==='east'?'bar-east':v.rg==='west'?'bar-west':'bar-center';
+    return `
+      <div class="dcu-card">
+        <div class="dcu-header">
+          <div class="dcu-name">${dcu}</div>
+          <span class="dcu-region-tag ${rgCls}">${rgTag}</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar ${barCls}" style="width:${barW}%"></div>
+        </div>
+        <div class="dcu-stats">
+          <span>${v.j26.toLocaleString()} admissions</span>
+          <span>${pct}% of last year · ${v.count} centers</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ============================================================
+   TABLE
+============================================================ */
+function sortBy(key) {
+  if (sortKey===key) sortAsc=!sortAsc; else { sortKey=key; sortAsc=false; }
+  document.querySelectorAll('thead th').forEach(th=>{
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.getAttribute('onclick')===`sortBy('${key}')`) {
+      th.classList.add(sortAsc?'sort-asc':'sort-desc');
+    }
+  });
+  renderTable();
+}
+
+function renderTable() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  let rows = filteredData.filter(d=>
+    !q ||
+    (d['Center Name']||'').toLowerCase().includes(q) ||
+    (d.DCU||'').toLowerCase().includes(q) ||
+    (d.RCU||'').toLowerCase().includes(q) ||
+    (d.Taluka||'').toLowerCase().includes(q)
+  );
+
+  rows = rows.sort((a,b)=>{
+    const av = a[sortKey]??0, bv = b[sortKey]??0;
+    if (typeof av==='string') return sortAsc?(av>bv?1:-1):(av<bv?1:-1);
+    return sortAsc ? av-bv : bv-av;
+  });
+
+  const total = rows.length;
+  const totalPages = Math.ceil(total/PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = Math.max(1,totalPages);
+  const start = (currentPage-1)*PAGE_SIZE;
+  const pageRows = rows.slice(start, start+PAGE_SIZE);
+
+  const maxJ26 = Math.max(...rows.map(d=>d.july26),1);
+
+  document.getElementById('table-body').innerHTML = pageRows.map(d=>{
+    const rcuCls = d.RCU==='Marathwada East'?'pill-east':d.RCU==='Marathwada West'?'pill-west':'pill-center';
+    const diffCls = d.diff>0?'diff-pos':d.diff<0?'diff-neg':'diff-neu';
+    const diffStr = d.diff>0?'+'+d.diff:d.diff;
+    const pct = d.june25>0 ? Math.round((d.july26/d.june25)*100) : (d.july26>0?'New':'—');
+    const barW = Math.round((d.july26/maxJ26)*100);
+    const barCol = d.RCU==='Marathwada East'?'#22d3a5':d.RCU==='Marathwada West'?'#6c63ff':'#f7c948';
+    return `<tr>
+      <td style="font-weight:500">${d['Center Name']||'—'}</td>
+      <td>${d.DCU||'—'}</td>
+      <td><span class="region-pill ${rcuCls}">${(d.RCU||'').replace('Marathwada ','')}</span></td>
+      <td>${d.Taluka||'—'}</td>
+      <td>${d['Urban/Rural']||'—'}</td>
+      <td>${d.june25||0}</td>
+      <td>
+        <div class="pct-bar-cell">
+          <span>${d.july26||0}</span>
+          <div class="mini-bar"><div class="mini-fill" style="width:${barW}%;background:${barCol}"></div></div>
+        </div>
+      </td>
+      <td class="${diffCls}">${diffStr}</td>
+      <td>${pct==='New'||pct==='—'?pct:pct+'%'}</td>
+      <td>${d.pending||0}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagination info
+  document.getElementById('pagination-info').textContent =
+    `Showing ${start+1}–${Math.min(start+PAGE_SIZE,total)} of ${total} centers`;
+
+  // Pagination buttons
+  const maxBtns = 7;
+  let pages = [];
+  if (totalPages<=maxBtns) {
+    pages = Array.from({length:totalPages},(_,i)=>i+1);
+  } else {
+    pages = [1];
+    if (currentPage>3) pages.push('…');
+    for (let i=Math.max(2,currentPage-1); i<=Math.min(totalPages-1,currentPage+1); i++) pages.push(i);
+    if (currentPage<totalPages-2) pages.push('…');
+    pages.push(totalPages);
+  }
+  document.getElementById('page-btns').innerHTML =
+    `<button onclick="changePage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>` +
+    pages.map(p => typeof p==='number'
+      ? `<button onclick="changePage(${p})" class="${p===currentPage?'active':''}">${p}</button>`
+      : `<button disabled style="opacity:0.4">…</button>`
+    ).join('') +
+    `<button onclick="changePage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>`;
+}
+
+function changePage(p) {
+  const total = filteredData.length;
+  const totalPages = Math.ceil(total/PAGE_SIZE);
+  if (p<1||p>totalPages) return;
+  currentPage = p;
+  renderTable();
+}
+
+/* ============================================================
+   REFRESH
+============================================================ */
+async function refreshData() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('refreshing');
+  btn.disabled = true;
+  await loadData();
+  btn.classList.remove('refreshing');
+  btn.disabled = false;
+}
+
+/* ============================================================
+   LOADING OVERLAY
+============================================================ */
+function showLoading(v) {
+  document.getElementById('loading-overlay').classList.toggle('hidden', !v);
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+loadData();
+</script>
+</body>
+</html>
